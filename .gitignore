@@ -1,0 +1,2 @@
+# Ignore PyTorch saved model and tensor files
+*.pt
