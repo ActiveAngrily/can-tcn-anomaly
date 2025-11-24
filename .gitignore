@@ -1,2 +1,5 @@
-# Ignore PyTorch saved model and tensor files
+# Ignore all .pt files by default
 *.pt
+
+# Exception: Do NOT ignore .pt files inside the "ML model" folder
+!ML model/*.pt
