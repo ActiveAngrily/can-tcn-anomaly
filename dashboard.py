@@ -2,92 +2,98 @@ import torch
 import numpy as np
 import rospy
 import json
-from std_msgs.msg import String  # We use String because Sarisha needs a dictionary
+import os
+from std_msgs.msg import String 
 
-# --- 1. IMPORT SARISHA'S CLASS ---
-# We import the exact class name found in her file
+# Import local class
 from live_preprocessor import LivePreprocessor
 
-# --- 2. CONFIGURATION ---
-THRESHOLD = 0.3101  # Your calculated value
-MODEL_FILE = "ML model/anomaly_detector_optimized.pt"
-ROS_TOPIC = "/carla/ego_vehicle/can_data" # Standard name for CAN data strings
+# --- CONFIGURATION ---
+THRESHOLD = 0.3101 
+# UPDATED PATH: Points to 'models/' instead of 'ML model/'
+MODEL_FILE = "models/anomaly_detector_optimized.pt" 
+ROS_TOPIC = "/carla/ego_vehicle/can_data" 
 
-# --- 3. SETUP SYSTEM ---
-print("--------------------------------------------------")
-print(">>> SYSTEM STARTUP")
+# --- SYSTEM STARTUP ---
+print("==================================================")
+print("   VEHICULAR ANOMALY DETECTION DASHBOARD")
+print("==================================================")
 
 # A. Load Model
 device = torch.device("cpu")
-print(f">>> Loading Model: {MODEL_FILE}")
+print(f"[STATUS] Attempting to load model from: {MODEL_FILE}")
+
+if not os.path.exists(MODEL_FILE):
+    print(f"[FATAL] Model file not found at {MODEL_FILE}")
+    print("       Please ensure 'convert_coreml.py' has been run to generate the optimized model.")
+    exit(1)
+
 try:
     model = torch.jit.load(MODEL_FILE, map_location=device)
     model.eval()
-    print("   ✅ Model Loaded.")
+    print(f"[STATUS] Model loaded successfully on device: {device}")
 except Exception as e:
-    print(f"   ❌ ERROR: Model not found! {e}")
-    exit()
+    print(f"[FATAL] Failed to load the TorchScript model. Exception: {e}")
+    exit(1)
 
 # B. Initialize Preprocessor
-# We don't need to pass arguments because you fixed the 'data/' folder in Step 1
-print(">>> Initializing Preprocessor...")
+print("[STATUS] Initializing Data Preprocessor...")
 try:
+    # This uses the updated defaults in live_preprocessor.py
     processor = LivePreprocessor()
-    print("   ✅ Preprocessor Ready.")
+    print("[STATUS] Preprocessor initialized and connected.")
 except Exception as e:
-    print(f"   ❌ ERROR: Missing 'data/scaler.joblib' or 'final_columns.txt'!")
-    print(f"   Details: {e}")
-    exit()
+    print(f"[FATAL] Could not initialize preprocessor: {e}")
+    print("       Check that your dataset files (scaler.joblib, final_columns.txt) are in the 'dataset/' folder.")
+    exit(1)
 
-# --- 4. THE CORE LOGIC ---
+# --- CORE LOGIC ---
 def data_callback(msg):
     """
-    Runs every time CARLA sends a message.
+    Runs every time CARLA sends a message via ROS.
     """
     try:
         # 1. Convert ROS String to Python Dictionary
-        # We assume the bridge sends data like: '{"CAN_ID": "0350", "D0": "FF", ...}'
         raw_dict = json.loads(msg.data)
         
-        # 2. Clean Data (Sarisha's Code)
-        # Returns a Tensor if buffer is full (50 items), or None
+        # 2. Clean and Scale Data
         input_tensor = processor.process_new_data(raw_dict)
 
-        # 3. Predict & Check (Only if we have a full tensor)
+        # 3. Predict & Check (Only runs if buffer has 50 items)
         if input_tensor is not None:
             with torch.no_grad():
-                # Run Anant's Model
+                # Run Inference
                 prediction = model(input_tensor)
 
                 # Compare Prediction vs Reality (Last value in the window)
-                # Sarisha's tensor shape is likely (1, 50, 11)
                 actual_data = input_tensor[:, -1, :] 
                 
-                # Calculate Error (MSE)
+                # Calculate Reconstruction Error (MSE)
                 loss = torch.nn.functional.mse_loss(prediction, actual_data)
                 error_score = loss.item()
 
-                # 4. DECIDE
+                # 4. Decision Logic
                 if error_score > THRESHOLD:
-                    print(f"\033[91m🚨 ANOMALY DETECTED! Score: {error_score:.5f}\033[0m")
+                    # Red text for anomaly
+                    print(f"\033[91m[ANOMALY DETECTED] Score: {error_score:.5f} (Threshold: {THRESHOLD})\033[0m")
                 else:
-                    print(f"\033[92m✅ Normal. Score: {error_score:.5f}\033[0m")
+                    # Green text for normal
+                    print(f"\033[92m[NORMAL] Status OK. Score: {error_score:.5f}\033[0m")
                     
     except json.JSONDecodeError:
-        print("⚠️ Received non-JSON data. Check ROS bridge format.")
+        print("[WARN] Received malformed JSON data from ROS bridge.")
     except Exception as e:
-        print(f"⚠️ Error in loop: {e}")
+        print(f"[WARN] Runtime error in data loop: {e}")
 
-# --- 5. EXECUTION LOOP ---
+# --- EXECUTION LOOP ---
 if __name__ == '__main__':
     try:
         rospy.init_node('anomaly_dashboard', anonymous=True)
         rospy.Subscriber(ROS_TOPIC, String, data_callback)
         
-        print(f">>> DASHBOARD LIVE.")
-        print(f"    Listening to: {ROS_TOPIC}")
-        print(f"    Threshold: {THRESHOLD}")
+        print(f"[INFO] Dashboard is live and listening to: {ROS_TOPIC}")
+        print(f"[INFO] Anomaly Threshold set to: {THRESHOLD}")
         print("--------------------------------------------------")
         rospy.spin()
     except rospy.ROSInterruptException:
-        pass
+        print("[INFO] Dashboard stopped by user.")

@@ -4,7 +4,8 @@ import coremltools as ct
 import numpy as np
 import os
 
-# --- STEP 1: DEFINE THE MODEL ARCHITECTURE (CRITICAL) ---
+# --- STEP 1: DEFINE MODEL ARCHITECTURE ---
+# We redefine this to ensure we can load the weights into a structure
 class TCN_Forecaster(nn.Module):
     def __init__(self, num_inputs, output_dim):
         super(TCN_Forecaster, self).__init__()
@@ -25,46 +26,64 @@ class TCN_Forecaster(nn.Module):
         features = features.squeeze(-1)
         return self.fc(features)
 
-# --- STEP 2: DEFINE PATHS AND SHAPES ---
-TORCHSCRIPT_PATH = 'anomaly_detector_optimized.pt'
-# *** CORRECTED: Output extension must be .mlpackage ***
-COREML_PATH = 'anomaly_detector_final.mlpackage' 
+# --- STEP 2: DEFINE PATHS ---
+# Updated to reflect new directory structure
+WEIGHTS_PATH = 'models/anomaly_detector.pth'
+TORCHSCRIPT_PATH = 'models/anomaly_detector_optimized.pt'
+COREML_PATH = 'models/anomaly_detector_final.mlpackage' 
 
-# Input dimensions based on your data (50 sequence length, 11 features)
+# Model Dimensions
 SEQUENCE_LENGTH = 50
 FEATURES = 11
 
-# --- STEP 3: DEFINE CORE ML INPUT SPECIFICATION ---
-input_name = "input_data"
+# --- STEP 3: LOAD AND TRACE MODEL ---
+print(f"[1/3] Checking for weights at {WEIGHTS_PATH}...")
 
-mlmodel_input = ct.TensorType(
-    name=input_name, 
-    shape=(1, SEQUENCE_LENGTH, FEATURES),
-    dtype=np.float32
-)
+if not os.path.exists(WEIGHTS_PATH):
+    print(f"[ERROR] Weights file not found. Please ensure 'anomaly_detector.pth' is in the 'models/' folder.")
+    exit(1)
 
-# --- STEP 4: CONVERT THE TORCHSCRIPT MODEL TO CORE ML ---
-print(f"⚙️ Starting TorchScript (.pt) to Core ML Conversion on Mac...")
+# Instantiate and Load
+print("[1/3] Loading PyTorch model...")
+model = TCN_Forecaster(FEATURES, 11)
+model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=torch.device('cpu')))
+model.eval()
+
+# Create Dummy Input for Tracing
+dummy_input = torch.randn(1, SEQUENCE_LENGTH, FEATURES)
+
+# Trace and Save TorchScript
+print(f"[2/3] Tracing model to TorchScript format...")
+try:
+    traced_model = torch.jit.trace(model, dummy_input)
+    traced_model.save(TORCHSCRIPT_PATH)
+    print(f"[2/3] Saved TorchScript model to: {TORCHSCRIPT_PATH}")
+except Exception as e:
+    print(f"[ERROR] Failed to trace model: {e}")
+    exit(1)
+
+# --- STEP 4: CONVERT TO CORE ML ---
+print(f"[3/3] Converting to Apple Core ML format...")
 
 try:
-    # Load a dummy PyTorch model to pass to the converter
-    # The converter is smart enough to handle the .pt file directly.
-    dummy_model = TCN_Forecaster(FEATURES, 11)
+    mlmodel_input = ct.TensorType(
+        name="input_data", 
+        shape=(1, SEQUENCE_LENGTH, FEATURES),
+        dtype=np.float32
+    )
 
     mlmodel = ct.convert(
-        model=TORCHSCRIPT_PATH,
+        model=traced_model,
         source='pytorch', 
         inputs=[mlmodel_input],
         compute_precision=ct.precision.FLOAT16,
         minimum_deployment_target=ct.target.macOS12,
     )
 
-    # --- SAVE THE CORE ML MODEL ---
-    # This will now create a folder with the .mlpackage extension.
     mlmodel.save(COREML_PATH)
-
-    print(f"✅ FINAL SUCCESS! Core ML model saved to '{COREML_PATH}'")
-    print("\nThe file is optimized and ready for Xcode integration.")
+    print(f"[SUCCESS] Core ML package saved to: {COREML_PATH}")
+    print("[INFO] The model is now ready for Xcode integration.")
 
 except Exception as e:
-    print(f"❌ Conversion failed with a critical error: {e}")
+    print(f"[ERROR] Core ML conversion failed: {e}")
+    exit(1)
