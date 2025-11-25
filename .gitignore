@@ -3,3 +3,5 @@
 
 # Exception: Do NOT ignore .pt files inside the "ML model" folder
 !ML model/*.pt
+
+*.tar.gz
