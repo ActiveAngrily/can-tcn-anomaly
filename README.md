@@ -1,14 +1,15 @@
 # CAN-TCN-Anomaly: Real-Time Vehicular Intrusion Detection
 
-**Platform:** Apple Silicon (M1/M2/M3) macOS & Docker (Ubuntu 18.04 / ROS Melodic)
-**Simulator:** CARLA v0.9.11
+**Platform:** Apple Silicon (M1/M2/M3) macOS & Docker (Ubuntu 18.04 / ROS Melodic)  
+**Simulator:** CARLA v0.9.11  
 **Model:** Temporal Convolutional Network (TCN) with Core ML Optimization
 
------
+---
 
-## 1\. Project Overview
+## 1. Project Overview
 
 This repository contains a complete pipeline for detecting anomalies in vehicular Controller Area Network (CAN) data using a Temporal Convolutional Network (TCN).
+
 
 The project addresses a specific infrastructure challenge: **Running the industry-standard CARLA Simulator and ROS Melodic bridge on modern Apple Silicon hardware**, which typically lacks native support for these x86/Linux-based tools.
 
