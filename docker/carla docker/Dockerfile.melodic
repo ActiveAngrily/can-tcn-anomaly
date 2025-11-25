@@ -1,0 +1,153 @@
+# 1. Base image standard Ubuntu 18.04
+FROM ubuntu:18.04
+
+ARG CARLA_VERSION=0.9.11
+ARG GID=1000
+ARG UID=1000
+
+ENV USERNAME melodic
+ENV HOME /home/$USERNAME
+ENV DEBIAN_FRONTEND noninteractive
+
+# 2. Add user
+RUN groupadd -f -g ${GID} ${USERNAME} && \
+    useradd -m $USERNAME -u ${UID} -g ${GID} && \
+    echo "$USERNAME:$USERNAME" | chpasswd && \
+    usermod --shell /bin/bash $USERNAME && \
+    usermod -aG sudo $USERNAME && \
+    mkdir /etc/sudoers.d && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME && \
+    chmod 0440 /etc/sudoers.d/$USERNAME
+
+# 3. Install basic tools + GNUPG2 (Added gnupg2 here to fix your error)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo less emacs tmux bash-completion command-not-found \
+    software-properties-common xsel xdg-user-dirs \
+    python-pip python-protobuf python-pexpect pcl-tools \
+    libomp5 curl wget git gnupg2 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 4. Install ROS Melodic
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-melodic-desktop-full \
+    python-rosdep python-rosinstall python-rosinstall-generator python-wstool build-essential \
+    ros-melodic-derived-object-msgs ros-melodic-ackermann-msgs \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 5. Install Python dependencies
+RUN pip install transforms3d==0.3.1 networkx==2.2 pygame==1.9.6
+RUN rosdep init
+
+USER $USERNAME
+WORKDIR /home/$USERNAME
+RUN rosdep update
+
+SHELL ["/bin/bash", "-c"]
+
+# 6. Copy and Extract CARLA
+COPY --chown=melodic:melodic CARLA_${CARLA_VERSION}.tar.gz /home/${USERNAME}/
+RUN sudo mkdir /opt/carla-simulator && \
+    sudo tar xfvz CARLA_${CARLA_VERSION}.tar.gz -C /opt/carla-simulator/ && \
+    rm /home/${USERNAME}/CARLA_${CARLA_VERSION}.tar.gz
+
+# 7. Build ROS Bridge
+RUN mkdir -p ~/catkin_ws/src && \
+    source /opt/ros/melodic/setup.bash && \
+    catkin_init_workspace ~/catkin_ws/src && \
+    cd ~/catkin_ws/src && \
+    git clone --recursive https://github.com/carla-simulator/ros-bridge.git -b ${CARLA_VERSION} && \
+    cd ~/catkin_ws && \
+    catkin_make -DCMAKE_BUILD_TYPE=Release && \
+    source ~/catkin_ws/devel/setup.bash
+
+# 8. Build ScenarioRunner
+RUN cd /home/$USERNAME && \
+    git clone https://github.com/carla-simulator/scenario_runner.git -b v${CARLA_VERSION} && \
+    sudo pip install -r scenario_runner/requirements.txt
+
+# 9. Install the Python Egg
+RUN sudo python -m easy_install /opt/carla-simulator/PythonAPI/carla/dist/carla-${CARLA_VERSION}-py2.7-linux-x86_64.egg
+
+# 10. Environment Setup
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc && \
+    echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc && \
+    echo "export SCENARIO_RUNNER_PATH=/home/$USERNAME/scenario_runner" >> ~/.bashrc && \
+    echo "export PYTHONPATH=\${PYTHONPATH}:/opt/carla-simulator/PythonAPI/carla" >> ~/.bashrc# 1. Base image standard Ubuntu 18.04
+FROM ubuntu:18.04
+
+ARG CARLA_VERSION=0.9.11
+ARG GID=1000
+ARG UID=1000
+
+ENV USERNAME melodic
+ENV HOME /home/$USERNAME
+ENV DEBIAN_FRONTEND noninteractive
+
+# 2. Add user
+RUN groupadd -f -g ${GID} ${USERNAME} && \
+    useradd -m $USERNAME -u ${UID} -g ${GID} && \
+    echo "$USERNAME:$USERNAME" | chpasswd && \
+    usermod --shell /bin/bash $USERNAME && \
+    usermod -aG sudo $USERNAME && \
+    mkdir /etc/sudoers.d && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME && \
+    chmod 0440 /etc/sudoers.d/$USERNAME
+
+# 3. Install basic tools + GNUPG2 (Added gnupg2 here to fix your error)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo less emacs tmux bash-completion command-not-found \
+    software-properties-common xsel xdg-user-dirs \
+    python-pip python-protobuf python-pexpect pcl-tools \
+    libomp5 curl wget git gnupg2 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 4. Install ROS Melodic
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-melodic-desktop-full \
+    python-rosdep python-rosinstall python-rosinstall-generator python-wstool build-essential \
+    ros-melodic-derived-object-msgs ros-melodic-ackermann-msgs \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 5. Install Python dependencies
+RUN pip install transforms3d==0.3.1 networkx==2.2 pygame==1.9.6
+RUN rosdep init
+
+USER $USERNAME
+WORKDIR /home/$USERNAME
+RUN rosdep update
+
+SHELL ["/bin/bash", "-c"]
+
+# 6. Copy and Extract CARLA
+COPY --chown=melodic:melodic CARLA_${CARLA_VERSION}.tar.gz /home/${USERNAME}/
+RUN sudo mkdir /opt/carla-simulator && \
+    sudo tar xfvz CARLA_${CARLA_VERSION}.tar.gz -C /opt/carla-simulator/ && \
+    rm /home/${USERNAME}/CARLA_${CARLA_VERSION}.tar.gz
+
+# 7. Build ROS Bridge
+RUN mkdir -p ~/catkin_ws/src && \
+    source /opt/ros/melodic/setup.bash && \
+    catkin_init_workspace ~/catkin_ws/src && \
+    cd ~/catkin_ws/src && \
+    git clone --recursive https://github.com/carla-simulator/ros-bridge.git -b ${CARLA_VERSION} && \
+    cd ~/catkin_ws && \
+    catkin_make -DCMAKE_BUILD_TYPE=Release && \
+    source ~/catkin_ws/devel/setup.bash
+
+# 8. Build ScenarioRunner
+RUN cd /home/$USERNAME && \
+    git clone https://github.com/carla-simulator/scenario_runner.git -b v${CARLA_VERSION} && \
+    sudo pip install -r scenario_runner/requirements.txt
+
+# 9. Install the Python Egg
+RUN sudo python -m easy_install /opt/carla-simulator/PythonAPI/carla/dist/carla-${CARLA_VERSION}-py2.7-linux-x86_64.egg
+
+# 10. Environment Setup
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc && \
+    echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc && \
+    echo "export SCENARIO_RUNNER_PATH=/home/$USERNAME/scenario_runner" >> ~/.bashrc && \
+    echo "export PYTHONPATH=\${PYTHONPATH}:/opt/carla-simulator/PythonAPI/carla" >> ~/.bashrc
