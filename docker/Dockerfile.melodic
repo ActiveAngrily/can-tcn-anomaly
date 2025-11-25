@@ -151,3 +151,4 @@ RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc && \
     echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc && \
     echo "export SCENARIO_RUNNER_PATH=/home/$USERNAME/scenario_runner" >> ~/.bashrc && \
     echo "export PYTHONPATH=\${PYTHONPATH}:/opt/carla-simulator/PythonAPI/carla" >> ~/.bashrc
+
