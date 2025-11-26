@@ -146,9 +146,14 @@ RUN cd /home/$USERNAME && \
 # 9. Install the Python Egg
 RUN sudo python -m easy_install /opt/carla-simulator/PythonAPI/carla/dist/carla-${CARLA_VERSION}-py2.7-linux-x86_64.egg
 
+RUN sudo apt-get update && sudo apt-get install -y python3-pip python3-yaml && pip3 install --upgrade pip
+
+RUN pip3 install torch numpy joblib rospkg
+
+RUN sudo apt-get install -y ros-melodic-rosbridge-server
+
 # 10. Environment Setup
 RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc && \
     echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc && \
     echo "export SCENARIO_RUNNER_PATH=/home/$USERNAME/scenario_runner" >> ~/.bashrc && \
     echo "export PYTHONPATH=\${PYTHONPATH}:/opt/carla-simulator/PythonAPI/carla" >> ~/.bashrc
-    

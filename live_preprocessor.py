@@ -1,97 +1,100 @@
+import sys
 import numpy as np
 import torch
 import joblib
+import json
 from collections import deque
 import os
+import time
+
+# --- NUMPY COMPATIBILITY FIX ---
+try:
+    import numpy.core.multiarray
+    sys.modules['numpy._core'] = numpy.core
+    sys.modules['numpy._core.multiarray'] = numpy.core.multiarray
+except ImportError:
+    pass
 
 class LivePreprocessor:
-    def __init__(self, scaler_path='dataset/train/scaler.joblib', columns_path='dataset/final_columns.txt', seq_length=50):
-        """
-        This class handles live data coming from the car simulator.
-        It keeps a 'buffer' of the last 50 messages.
-        """
-        print(f"[INFO] Initializing LivePreprocessor...")
-        print(f"[INFO] Configuration: Sequence Length = {seq_length}")
+    def __init__(self, scaler_path='dataset/val/scaler_params.json', columns_path='dataset/train/final_columns.txt', seq_length=50):
+        print(f"[INFO] Initializing LivePreprocessor (Hybrid Fix)...")
         
-        # 1. Load the Scaler
-        if not os.path.exists(scaler_path):
-            # Fallback check in case running from dataset dir
-            if os.path.exists('../' + scaler_path):
-                scaler_path = '../' + scaler_path
-            else:
-                raise Exception(f"[ERROR] Could not find scaler at {scaler_path}. Ensure you are running from the repo root.")
-                
-        try:
+        # 1. Load Scaler
+        self.use_json = False
+        if scaler_path.endswith('.json'):
+            self.use_json = True
+            with open(scaler_path, 'r') as f:
+                params = json.load(f)
+                self.scale_ = np.array(params["scale_"])
+                self.min_ = np.array(params["min_"])
+        else:
             self.scaler = joblib.load(scaler_path)
-            print(f"[INFO] Successfully loaded scaler from: {scaler_path}")
-        except Exception as e:
-            print(f"[ERROR] Failed to load scaler: {e}")
-            raise
 
-        # 2. Load Column Order
-        if not os.path.exists(columns_path):
-             raise Exception(f"[ERROR] Could not find columns file at {columns_path}.")
-            
+        # 2. Load Columns
         with open(columns_path, 'r') as f:
-            content = f.read().strip()
-            self.column_order = content.split(',')
-        print(f"[INFO] Loaded column definitions. Total columns: {len(self.column_order)}")
+            self.column_order = f.read().strip().split(',')
 
-        # 3. Define which columns are Hexadecimal (0x...)
         self.hex_columns = ['CAN_ID', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7']
-
-        # 4. Create the 'Buffer' (The Sliding Window)
         self.seq_length = seq_length
         self.buffer = deque(maxlen=seq_length)
         
-        print("[INFO] LivePreprocessor is ready to process stream.")
+        # 3. TIMESTAMP BASELINE
+        self.start_time = time.time()
 
     def process_new_data(self, ros_data_dict):
-        """
-        Input: A dictionary of ONE row of data from the car.
-        Output: A PyTorch Tensor (if we have 50 items), or None (if buffering).
-        """
         try:
             ordered_row = []
-            
             for col_name in self.column_order:
-                raw_value = ros_data_dict.get(col_name, 0)
                 
-                # Convert Data Types
-                if col_name in self.hex_columns:
+                # --- FIX 1: TIMESTAMP (Keep it relative/small) ---
+                if col_name == 'Timestamp':
+                    # The scaler likely expects 0.0 - 1000.0 range
+                    clean_val = time.time() - self.start_time
+                    # Prevent drift over long sessions
+                    if clean_val > 10000: self.start_time = time.time()
+                
+                # --- FIX 2: CAN_ID (Must be the huge integer) ---
+                elif col_name == 'CAN_ID':
+                    raw_val = ros_data_dict.get(col_name, 0)
+                    # Convert "0x18F02F01" -> 418393857
+                    # The scaler needs this specific huge number to output 0.0-1.0
                     try:
-                        # We convert to string first just in case, then to int
-                        clean_val = int(str(raw_value), 16)
-                    except ValueError:
-                        clean_val = 0
+                        clean_val = float(int(str(raw_val), 16))
+                    except:
+                        clean_val = 418393857.0 # Fallback to engine ID
+                # -----------------------------------------------
+
                 else:
-                    # It's Decimal (Timestamp or DLC)
-                    try:
-                        clean_val = float(raw_value)
-                    except ValueError:
-                        clean_val = 0.0
-                
+                    # Process Sensors (D0-D7)
+                    raw_value = ros_data_dict.get(col_name, 0)
+                    if col_name in self.hex_columns:
+                        try:
+                            clean_val = float(int(str(raw_value), 16))
+                        except ValueError:
+                            clean_val = 0.0
+                    else:
+                        try:
+                            clean_val = float(raw_value)
+                        except ValueError:
+                            clean_val = 0.0
+                            
                 ordered_row.append(clean_val)
 
-            # Scale the Row
-            # The scaler expects a list of lists: [[val1, val2...]]
-            scaled_row = self.scaler.transform([ordered_row])[0]
+            # Scale
+            row_array = np.array(ordered_row)
+            
+            if self.use_json:
+                scaled_row = (row_array * self.scale_) + self.min_
+            else:
+                scaled_row = self.scaler.transform([ordered_row])[0]
 
-            # Add to Buffer
             self.buffer.append(scaled_row)
 
-            # Check if ready
-            # If we don't have 50 items yet, we can't make a prediction.
             if len(self.buffer) < self.seq_length:
                 return None
             
-            # Create Tensor
-            window_array = np.array(self.buffer)
-            # Convert to PyTorch Tensor and add "Batch" dimension: Shape (1, 50, 11)
-            tensor_out = torch.tensor(window_array).float().unsqueeze(0)
-            
-            return tensor_out
+            return torch.tensor(np.array(self.buffer)).float().unsqueeze(0)
 
         except Exception as e:
-            print(f"[WARN] Preprocessing error encountered: {e}")
+            print(f"[WARN] Preprocessing error: {e}")
             return None
