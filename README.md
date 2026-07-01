@@ -1,6 +1,7 @@
 <div align="center">
 
-# CAN-TCN-Anomaly: Real-Time Vehicular Intrusion Detection
+# CRUCIBLE -<img width="800" height="450" alt="ezgif-52ef4254daebbb0e" src="https://github.com/user-attachments/assets/46c3f254-c4b5-45fe-80aa-40783b7e64a3" />
+ Real-Time Vehicular Intrusion Detection
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)
@@ -8,7 +9,8 @@
 ![ROS Melodic](https://img.shields.io/badge/ROS-Melodic-orange)
 ![Carla v0.9.11](https://img.shields.io/badge/CARLA-v0.9.11-blueviolet)
 
-<img src="https://via.placeholder.com/800x200.png?text=CAN-TCN-Anomaly+Hero+Image" alt="Hero Placeholder" width="800">
+<img width="800" alt="hero placeholder image" src="https://github.com/user-attachments/assets/a3bfddaa-4b6b-4184-bc8a-6cc73559ac72" />
+
 
 <br>
 
@@ -21,7 +23,9 @@
 ---
 
 <div align="center">
-  <img src="https://via.placeholder.com/800x400.png?text=Anomaly+Detection+Demo+GIF" alt="Demo Placeholder" width="800">
+  <img width="800" height="450" alt="ezgif-52ef4254daebbb0e" src="https://github.com/user-attachments/assets/c36eaf6b-eaeb-4485-837a-d7512cc91fc8" />
+
+
 </div>
 
 ---
