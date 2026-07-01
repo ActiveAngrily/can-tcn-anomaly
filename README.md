@@ -42,11 +42,24 @@ The codebase has been reorganized for modularity. Below is the file tree and the
 
 ```text
 .
-├── anomaly_injector.py        # "Chaos Monkey" script to force sudden vehicle errors
-├── convert_coreml.py          # Utility to convert PyTorch models to TorchScript/CoreML
-├── dashboard.py               # The main runtime application (ROS Listener + AI Inference)
-├── live_preprocessor.py       # Helper class for sliding windows and data scaling
-├── modeltrain.ipynb           # Jupyter Notebook for training the TCN from scratch
+├── src/                       # Core runtime applications
+│   ├── dashboard.py           # The main runtime application (ROS Listener + AI Inference)
+│   └── live_preprocessor.py   # Helper class for sliding windows and data scaling
+│
+├── tools/                     # Utilities and tests
+│   ├── anomaly_injector.py    # "Chaos Monkey" script to force sudden vehicle errors
+│   └── convert_coreml.py      # Utility to convert PyTorch models to TorchScript/CoreML
+│
+├── notebooks/                 # Jupyter Notebooks
+│   └── modeltrain.ipynb       # Jupyter Notebook for training the TCN from scratch
+│
+├── legacy/                    # Older debug scripts and tools
+│   ├── can_generator.py
+│   ├── debug_connection.py
+│   ├── debug_dashboard.py
+│   ├── debug_generator.py
+│   ├── export_scaler.py
+│   └── fix_scaler.py
 │
 ├── dataset/                   # Data definition and scaling artifacts
 │   ├── final_columns.txt      # The schema of the CAN bus data
@@ -165,7 +178,7 @@ docker ps
 docker exec -it carla_client bash
 
 # 3. Navigate to Source Code
-cd /home/melodic/can-tcn-anomaly
+cd /home/melodic/can-tcn-anomaly/src
 
 # 4. Run Dashboard
 python3 dashboard.py
@@ -187,6 +200,7 @@ To verify the AI is working, we use a script that hijacks the vehicle controls t
 <!-- end list -->
 
 ```bash
+cd tools
 python3 anomaly_injector.py
 ```
 
@@ -223,6 +237,7 @@ To optimize a newly trained model:
 <!-- end list -->
 
 ```bash
+cd tools
 python3 convert_coreml.py
 ```
 
@@ -232,7 +247,7 @@ This will generate `models/anomaly_detector_optimized.pt` (used by the dashboard
 
 ## 8\. Codebase Details
 
-### `dashboard.py`
+### `src/dashboard.py`
 
 The central orchestrator.
 
@@ -241,7 +256,7 @@ The central orchestrator.
   * **Inference:** Passes tensor buffer to loaded JIT model.
   * **Logic:** Calculates MSE loss vs. Threshold. Prints Alerts.
 
-### `live_preprocessor.py`
+### `src/live_preprocessor.py`
 
 Handles the data engineering.
 
@@ -279,7 +294,7 @@ A specialized build file for Apple Silicon.
 **Issue: "Model file not found" in Dashboard**
 
   * *Cause:* The file paths were updated in the recent cleanup.
-  * *Fix:* Ensure you run `dashboard.py` from the root directory, so it can find `models/` and `dataset/` correctly.
+  * *Fix:* Ensure you run `dashboard.py` from the `src/` directory, so it can find `../models/` and `../dataset/` correctly.
 
 -----
 

@@ -1,3 +1,10 @@
+"""
+Model Conversion Tool
+
+This utility converts a standard PyTorch model (.pth) into a TorchScript model (.pt)
+and an Apple Core ML package (.mlpackage). TorchScript is required for faster inference
+in the Docker environment, and Core ML is useful if deploying natively on Apple Silicon.
+"""
 import torch
 import torch.nn as nn
 import coremltools as ct
@@ -27,10 +34,10 @@ class TCN_Forecaster(nn.Module):
         return self.fc(features)
 
 # --- STEP 2: DEFINE PATHS ---
-# Updated to reflect new directory structure
-WEIGHTS_PATH = 'models/anomaly_detector.pth'
-TORCHSCRIPT_PATH = 'models/anomaly_detector_optimized.pt'
-COREML_PATH = 'models/anomaly_detector_final.mlpackage' 
+# Paths updated to reflect the new directory structure relative to tools/
+WEIGHTS_PATH = '../models/anomaly_detector.pth'
+TORCHSCRIPT_PATH = '../models/anomaly_detector_optimized.pt'
+COREML_PATH = '../models/anomaly_detector_final.mlpackage' 
 
 # Model Dimensions
 SEQUENCE_LENGTH = 50
