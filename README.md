@@ -1,15 +1,48 @@
+<div align="center">
+
 # CAN-TCN-Anomaly: Real-Time Vehicular Intrusion Detection
 
-**Platform:** Apple Silicon (M1/M2/M3) macOS & Docker (Ubuntu 18.04 / ROS Melodic)  
-**Simulator:** CARLA v0.9.11  
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)
+![Build: Passing](https://img.shields.io/badge/build-passing-brightgreen)
+![ROS Melodic](https://img.shields.io/badge/ROS-Melodic-orange)
+![Carla v0.9.11](https://img.shields.io/badge/CARLA-v0.9.11-blueviolet)
+
+<img src="https://via.placeholder.com/800x200.png?text=CAN-TCN-Anomaly+Hero+Image" alt="Hero Placeholder" width="800">
+
+<br>
+
+**Platform:** Apple Silicon (M1/M2/M3) macOS & Docker (Ubuntu 18.04 / ROS Melodic) <br>
+**Simulator:** CARLA v0.9.11 <br>
 **Model:** Temporal Convolutional Network (TCN) with Core ML Optimization
+
+</div>
 
 ---
 
-## 1. Project Overview
+<div align="center">
+  <img src="https://via.placeholder.com/800x400.png?text=Anomaly+Detection+Demo+GIF" alt="Demo Placeholder" width="800">
+</div>
+
+---
+
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Repository Structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Installation & Setup](#installation--setup)
+- [Running the Simulation](#running-the-simulation)
+- [Anomaly Injection (Testing)](#anomaly-injection-testing)
+- [Development & Model Training](#development--model-training)
+- [Codebase Details](#codebase-details)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Project Overview
 
 This repository contains a complete pipeline for detecting anomalies in vehicular Controller Area Network (CAN) data using a Temporal Convolutional Network (TCN).
-
 
 The project addresses a specific infrastructure challenge: **Running the industry-standard CARLA Simulator and ROS Melodic bridge on modern Apple Silicon hardware**, which typically lacks native support for these x86/Linux-based tools.
 
@@ -34,11 +67,11 @@ The core of this project is an Anomaly Detector that monitors the CAN bus (Throt
 3.  **Inference:** A PyTorch TCN model predicts the *expected* next state of the vehicle.
 4.  **Detection:** If the reconstruction error (MSE) between the prediction and the actual sensor reading exceeds a calculated threshold, an anomaly alert is triggered.
 
------
+---
 
-## 2\. Repository Structure
+## Repository Structure
 
-The codebase has been reorganized for modularity. Below is the file tree and the purpose of each component.
+The codebase is organized for modularity:
 
 ```text
 .
@@ -80,38 +113,36 @@ The codebase has been reorganized for modularity. Below is the file tree and the
 └── .gitignore                 # Git configuration
 ```
 
------
+---
 
-## 3\. Prerequisites
+## Prerequisites
 
 Before cloning this repository, ensure your host environment is configured correctly.
 
 ### A. Host Software (macOS)
-
-1.  **XQuartz:** Required for GUI forwarding (viewing the PyGame window from Docker).
-      * Install via brew: `brew install --cask xquartz`
-      * *Settings:* Enable "Allow connections from network clients" in XQuartz preferences.
-2.  **Winery (or similar Wine wrapper):**
-      * You must have the **Windows** version of CARLA 0.9.11 installed.
-      * It must be running on port `2000` on `localhost`.
-3.  **Docker Desktop:**
-      * Ensure "Use Rosetta for x86/amd64 emulation on Apple Silicon" is enabled in settings for performance.
+1. **XQuartz:** Required for GUI forwarding (viewing the PyGame window from Docker).
+   * Install via brew: `brew install --cask xquartz`
+   * *Settings:* Enable "Allow connections from network clients" in XQuartz preferences.
+2. **Winery (or similar Wine wrapper):**
+   * You must have the **Windows** version of CARLA 0.9.11 installed.
+   * It must be running on port `2000` on `localhost`.
+3. **Docker Desktop:**
+   * Ensure "Use Rosetta for x86/amd64 emulation on Apple Silicon" is enabled in settings for performance.
 
 ### B. External Files
-
 You must place the CARLA Python API installer inside the project root (or accessible path) to build the Docker image.
+* File required: `CARLA_0.9.11.tar.gz` (Linux version) - *Note: This is needed inside the Docker container for the Python API, even though the Host runs the Windows simulator.*
 
-  * File required: `CARLA_0.9.11.tar.gz` (Linux version) - *Note: This is needed inside the Docker container for the Python API, even though the Host runs the Windows simulator.*
+---
 
------
-
-## 4\. Installation & Setup
+<details>
+<summary><h2>Installation & Setup (Click to Expand)</h2></summary>
 
 ### Step 1: Build the Docker Image
 
 The Dockerfile is located in the `docker/` directory. It sets up Ubuntu 18.04, ROS Melodic, and all Python dependencies.
 
-**Note:** This build process forces `linux/amd64` architecture. It may take 15-20 minutes to complete due to emulation overhead.
+> **Note:** This build process forces `linux/amd64` architecture. It may take 15-20 minutes to complete due to emulation overhead.
 
 ```bash
 # Run from the repository root
@@ -142,32 +173,30 @@ chmod +x launch_container.sh
 
 You will be dropped into a bash shell inside the container: `melodic@<container_id>:/home/melodic$`.
 
------
+</details>
 
-## 5\. Running the Simulation
+---
+
+## Running the Simulation
 
 This process requires three terminal windows.
 
 ### Terminal 1: The Simulator (Host Mac)
-
-1.  Open your Winery wrapper.
-2.  Launch `CarlaUE4.exe`.
-3.  Wait for the map to load (black screen usually resolves into a city map).
+1. Open your Winery wrapper.
+2. Launch `CarlaUE4.exe`.
+3. Wait for the map to load (black screen usually resolves into a city map).
 
 ### Terminal 2: The ROS Bridge (Docker)
-
 In the shell started by `launch_container.sh`, run the bridge. This connects the Linux ROS environment to the Mac Host Simulator.
 
 ```bash
 # Inside Docker
 roslaunch carla_ros_bridge carla_ros_bridge_with_example_ego_vehicle.launch host:=host.docker.internal port:=2000
 ```
-
-  * **Expected Output:** A PyGame window labeled "Manual Control" should appear on your Mac desktop.
-  * **Controls:** Use `W/A/S/D` to drive the vehicle. Press `B` to toggle ignition.
+* **Expected Output:** A PyGame window labeled "Manual Control" should appear on your Mac desktop.
+* **Controls:** Use `W/A/S/D` to drive the vehicle. Press `B` to toggle ignition.
 
 ### Terminal 3: The AI Dashboard (Docker)
-
 Open a new terminal tab on your Mac, connect to the running container, and start the anomaly detector.
 
 ```bash
@@ -183,21 +212,18 @@ cd /home/melodic/can-tcn-anomaly/src
 # 4. Run Dashboard
 python3 dashboard.py
 ```
+* **Operational Status:** The dashboard will load `models/anomaly_detector_optimized.pt` and begin buffering data.
+* **Normal State:** You will see green text: `[NORMAL] Status OK. Score: 0.0024...`
 
-  * **Operational Status:** The dashboard will load `models/anomaly_detector_optimized.pt` and begin buffering data.
-  * **Normal State:** You will see green text: `[NORMAL] Status OK. Score: 0.0024...`
+---
 
------
-
-## 6\. Anomaly Injection (Testing)
+## Anomaly Injection (Testing)
 
 To verify the AI is working, we use a script that hijacks the vehicle controls to create erratic behavior that the TCN model has not predicted.
 
-1.  Keep `dashboard.py` running in Terminal 3.
-2.  Open a **Terminal 4** (exec into Docker).
-3.  Run the injector:
-
-<!-- end list -->
+1. Keep `dashboard.py` running in Terminal 3.
+2. Open a **Terminal 4** (exec into Docker).
+3. Run the injector:
 
 ```bash
 cd tools
@@ -205,98 +231,83 @@ python3 anomaly_injector.py
 ```
 
 **The Sequence of Events:**
+1. The script connects to CARLA via PythonAPI.
+2. It identifies your "Ego Vehicle".
+3. It waits 3 seconds, then forces the throttle to 100% and steering to 100% (Hard Right).
+4. **Dashboard Reaction:** The prediction error (MSE) in Terminal 3 will spike.
+5. **Alert:** The dashboard text will turn **RED**: `[ANOMALY DETECTED] Score: 0.4512 (Threshold: 0.3101)`.
 
-1.  The script connects to CARLA via PythonAPI.
-2.  It identifies your "Ego Vehicle".
-3.  It waits 3 seconds, then forces the throttle to 100% and steering to 100% (Hard Right).
-4.  **Dashboard Reaction:** The prediction error (MSE) in Terminal 3 will spike.
-5.  **Alert:** The dashboard text will turn **RED**: `[ANOMALY DETECTED] Score: 0.4512 (Threshold: 0.3101)`.
+---
 
------
-
-## 7\. Development & Model Training
+## Development & Model Training
 
 ### Training the Model
-
-The model is trained using `modeltrain.ipynb`. This notebook:
-
-1.  Loads `.pt` data files (PyTorch tensors).
-2.  Defines a TCN (Temporal Convolutional Network) with dilated convolutions.
-3.  Trains for 5 epochs.
-4.  Saves the weights to `models/anomaly_detector.pth`.
+The model is trained using `modeltrain.ipynb` in the `notebooks/` directory. This notebook:
+1. Loads `.pt` data files (PyTorch tensors).
+2. Defines a TCN (Temporal Convolutional Network) with dilated convolutions.
+3. Trains for 5 epochs.
+4. Saves the weights to `models/anomaly_detector.pth`.
 
 ### Optimization for Mac
-
 Standard PyTorch models can be slow in emulated Docker environments. We use `convert_coreml.py` to trace the model into **TorchScript**, which is significantly faster and removes Python overhead during inference.
 
 To optimize a newly trained model:
-
-1.  Place the new `.pth` file in `models/`.
-2.  Run the converter:
-
-<!-- end list -->
+1. Place the new `.pth` file in `models/`.
+2. Run the converter:
 
 ```bash
 cd tools
 python3 convert_coreml.py
 ```
-
 This will generate `models/anomaly_detector_optimized.pt` (used by the dashboard) and `models/anomaly_detector_final.mlpackage` (for Xcode/Swift apps).
 
------
+---
 
-## 8\. Codebase Details
+## Codebase Details
 
 ### `src/dashboard.py`
-
 The central orchestrator.
-
-  * **Inputs:** Subscribes to ROS topic `/carla/ego_vehicle/can_data`.
-  * **Processing:** deserializes JSON, sends data to `LivePreprocessor`.
-  * **Inference:** Passes tensor buffer to loaded JIT model.
-  * **Logic:** Calculates MSE loss vs. Threshold. Prints Alerts.
+* **Inputs:** Subscribes to ROS topic `/carla/ego_vehicle/can_data`.
+* **Processing:** deserializes JSON, sends data to `LivePreprocessor`.
+* **Inference:** Passes tensor buffer to loaded JIT model.
+* **Logic:** Calculates MSE loss vs. Threshold. Prints Alerts.
 
 ### `src/live_preprocessor.py`
-
 Handles the data engineering.
-
-  * **Scaler:** Loads `dataset/train/scaler.joblib` to normalize incoming CAN data to 0-1 range.
-  * **Buffer:** Maintains a `deque` of the last 50 time steps (required sequence length for the TCN).
-  * **Hex Conversion:** Automatically parses hexadecimal CAN IDs into integers.
+* **Scaler:** Loads `dataset/train/scaler.joblib` to normalize incoming CAN data to 0-1 range.
+* **Buffer:** Maintains a `deque` of the last 50 time steps (required sequence length for the TCN).
+* **Hex Conversion:** Automatically parses hexadecimal CAN IDs into integers.
 
 ### `docker/Dockerfile.melodic`
-
 A specialized build file for Apple Silicon.
+* **Base:** `ubuntu:18.04` (Replaces nvidia-cuda bases which crash on Mac).
+* **Fixes:** Installs `gnupg2` and `curl` manually to fix ROS key authentication errors.
+* **User:** Sets up a non-root user `melodic` to avoid permission issues with X11 forwarding.
 
-  * **Base:** `ubuntu:18.04` (Replaces nvidia-cuda bases which crash on Mac).
-  * **Fixes:** Installs `gnupg2` and `curl` manually to fix ROS key authentication errors.
-  * **User:** Sets up a non-root user `melodic` to avoid permission issues with X11 forwarding.
+---
 
------
-
-## 9\. Troubleshooting
+<details>
+<summary><h2>Troubleshooting (Click to Expand)</h2></summary>
 
 **Issue: "ALSA lib... No such file or directory"**
+* *Cause:* PyGame trying to initialize audio drivers that don't exist in Docker.
+* *Fix:* The launch script sets `SDL_AUDIODRIVER=dummy`.
 
-  * *Cause:* PyGame trying to initialize audio drivers that don't exist in Docker.
-  * *Fix:* The launch script sets `SDL_AUDIODRIVER=dummy`.
-
-**Issue: "OGRE ... RenderSystem\_GL" crashes**
-
-  * *Cause:* Mac M1/M2 graphics do not support the OpenGL calls made by RViz/CARLA in Docker.
-  * *Fix:* The launch script enforces software rendering via `LIBGL_ALWAYS_SOFTWARE=1`.
+**Issue: "OGRE ... RenderSystem_GL" crashes**
+* *Cause:* Mac M1/M2 graphics do not support the OpenGL calls made by RViz/CARLA in Docker.
+* *Fix:* The launch script enforces software rendering via `LIBGL_ALWAYS_SOFTWARE=1`.
 
 **Issue: "Connection Refused: 127.0.0.1:2000"**
-
-  * *Cause:* Docker container cannot see the Mac's localhost.
-  * *Fix:* Use the DNS alias `host.docker.internal` in your launch commands.
+* *Cause:* Docker container cannot see the Mac's localhost.
+* *Fix:* Use the DNS alias `host.docker.internal` in your launch commands.
 
 **Issue: "Model file not found" in Dashboard**
+* *Cause:* The file paths were updated in the recent cleanup.
+* *Fix:* Ensure you run `dashboard.py` from the `src/` directory, so it can find `../models/` and `../dataset/` correctly.
 
-  * *Cause:* The file paths were updated in the recent cleanup.
-  * *Fix:* Ensure you run `dashboard.py` from the `src/` directory, so it can find `../models/` and `../dataset/` correctly.
+</details>
 
------
+---
 
-**License:** MIT
-**Author:** ActiveAngrily, sanjanaa2102, sarisha06 
+**License:** MIT  
+**Author:** ActiveAngrily, sanjanaa2102, sarisha06
