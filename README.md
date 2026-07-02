@@ -1,7 +1,6 @@
 <div align="center">
 
-# CRUCIBLE -<img width="800" height="450" alt="ezgif-52ef4254daebbb0e" src="https://github.com/user-attachments/assets/46c3f254-c4b5-45fe-80aa-40783b7e64a3" />
- Real-Time Vehicular Intrusion Detection
+# CRUCIBLE - Real-Time Vehicular Intrusion Detection
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)
